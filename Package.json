@@ -2,9 +2,9 @@
   "name": "webex-dashboard",
   "version": "1.0.0",
   "description": "Dashboard 24/7 para sala personal de WebEx",
-  "main": "app.js",
+  "main": "PNPtvLiveApp.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node PNPtvLiveApp.js",
     "dev": "nodemon app.js"
   },
   "keywords": ["webex", "dashboard", "meetings", "railway"],

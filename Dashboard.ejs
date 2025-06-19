@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= roomTitle %> - Dashboard WebEx</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        
+        .status-dot.active {
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 {
+            color: #4f46e5;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .join-button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .join-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
+        
+        .room-url {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+        
+        .meetings-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .meeting-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #10b981;
+        }
+        
+        .meeting-time {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            margin-top: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><%= roomTitle %></h1>
+            <div class="status-indicator">
+                <div class="status-dot <%= roomStatus.active ? 'active' : '' %>"></div>
+                <span><%= roomStatus.active ? 'Sala Activa' : 'Sala Disponible' %></span>
+                <% if (roomStatus.active && roomStatus.participantCount) { %>
+                    <span>• <%= roomStatus.participantCount %> participantes</span>
+                <% } %>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Acceso Rápido -->
+            <div class="card">
+                <h3><i class="fas fa-video"></i> Acceso Rápido</h3>
+                <button class="join-button" onclick="joinRoom()">
+                    <i class="fas fa-play"></i> Unirse Ahora
+                </button>
+                <div class="room-url"><%= personalRoomUrl %></div>
+                <button onclick="copyUrl()" style="margin-top: 10px; padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-copy"></i> Copiar URL
+                </button>
+            </div>
+
+            <!-- Estado de la Sala -->
+            <div class="card">
+                <h3><i class="fas fa-users"></i> Estado Actual</h3>
+                <% if (roomStatus.active) { %>
+                    <div style="color: #059669; font-weight: 600; margin-bottom: 10px;">
+                        <i class="fas fa-circle" style="color: #22c55e;"></i> Reunión en curso
+                    </div>
+                    <% if (roomStatus.meetings && roomStatus.meetings.length > 0) { %>
+                        <% roomStatus.meetings.forEach(meeting => { %>
+                            <div class="meeting-item">
+                                <strong><%= meeting.title %></strong><br>
+                                <small class="meeting-time">
+                                    Inicio: <%= new Date(meeting.startTime).toLocaleString() %>
+                                </small>
+                                <% if (meeting.participants > 0) { %>
+                                    <br><small><%= meeting.participants %> participantes</small>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                <% } else { %>
+                    <div style="color: #6b7280; margin-bottom: 15px;">
+                        <i class="fas fa-circle" style="color: #ef4444;"></i> Sin reuniones activas
+                    </div>
+                    <p style="color: #6b7280;">La sala está disponible para nuevas reuniones.</p>
+                <% } %>
+                <button onclick="refreshStatus()" class="btn-primary" style="margin-top: 15px;">
+                    <i class="fas fa-refresh"></i> Actualizar Estado
+                </button>
+            </div>
+
+            <!-- Invitar Participantes -->
+            <div class="card">
+                <h3><i class="fas fa-user-plus"></i> Enviar Invitación</h3>
+                <div class="alert success" id="inviteSuccess"></div>
+                <div class="alert error" id="inviteError"></div>
+                <form id="inviteForm">
+                    <div class="form-group">
+                        <label>Email del invitado:</label>
+                        <input type="email" id="inviteEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mensaje (opcional):</label>
+                        <textarea id="inviteMessage" rows="3" placeholder="Mensaje personalizado..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-paper-plane"></i> Enviar Invitación
+                    </button>
+                </form>
+            </div>
+
+            <!-- Reuniones Próximas -->
+            <div class="card">
+                <h3><i class="fas fa-calendar"></i> Próximas Reuniones</h3>
+                <div class="meetings-list">
+                    <% if (meetings && meetings.length > 0) { %>
+                        <% meetings.forEach(meeting => { %>
+                            <div class="meeting-item">
+                                <strong><%= meeting.title %></strong><br>
+                                <small class="meeting-time">
+                                    <%= new Date(meeting.start).toLocaleString() %> • <%= meeting.duration %> min
+                                </small>
+                                <% if (meeting.joinUrl) { %>
+                                    <br><a href="<%= meeting.joinUrl %>" target="_blank" style="color: #4f46e5; text-decoration: none;">
+                                        <i class="fas fa-external-link-alt"></i> Unirse
+                                    </a>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <p style="color: #6b7280;">No hay reuniones programadas para las próximas 24 horas.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="timestamp">
+            Última actualización: <%= timestamp %>
+        </div>
+    </div>
+
+    <script>
+        function joinRoom() {
+            window.open('<%= personalRoomUrl %>', '_blank');
+        }
+
+        function copyUrl() {
+            navigator.clipboard.writeText('<%= personalRoomUrl %>').then(() => {
+                alert('URL copiada al portapapeles');
+            });
+        }
+
+        function refreshStatus() {
+            location.reload();
+        }
+
+        // Formulario de invitación
+        document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('inviteEmail').value;
+            const message = document.getElementById('inviteMessage').value;
+            
+            try {
+                const response = await fetch('/api/invite', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, message })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('inviteSuccess', 'Invitación enviada correctamente');
+                    document.getElementById('inviteForm').reset();
+                } else {
+                    showAlert('inviteError', result.error || 'Error al enviar invitación');
+                }
+            } catch (error) {
+                showAlert('inviteError', 'Error de conexión');
+            }
+        });
+
+        function showAlert(id, message) {
+            const alert = document.getElementById(id);
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-refresh cada 30 segundos
+        setInterval(refreshStatus, 30000);
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= roomTitle %> - Dashboard WebEx</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        
+        .status-dot.active {
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 {
+            color: #4f46e5;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .join-button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .join-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
+        
+        .room-url {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+        
+        .meetings-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .meeting-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #10b981;
+        }
+        
+        .meeting-time {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            margin-top: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><%= roomTitle %></h1>
+            <div class="status-indicator">
+                <div class="status-dot <%= roomStatus.active ? 'active' : '' %>"></div>
+                <span><%= roomStatus.active ? 'Sala Activa' : 'Sala Disponible' %></span>
+                <% if (roomStatus.active && roomStatus.participantCount) { %>
+                    <span>• <%= roomStatus.participantCount %> participantes</span>
+                <% } %>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Acceso Rápido -->
+            <div class="card">
+                <h3><i class="fas fa-video"></i> Acceso Rápido</h3>
+                <button class="join-button" onclick="joinRoom()">
+                    <i class="fas fa-play"></i> Unirse Ahora
+                </button>
+                <div class="room-url"><%= personalRoomUrl %></div>
+                <button onclick="copyUrl()" style="margin-top: 10px; padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-copy"></i> Copiar URL
+                </button>
+            </div>
+
+            <!-- Estado de la Sala -->
+            <div class="card">
+                <h3><i class="fas fa-users"></i> Estado Actual</h3>
+                <% if (roomStatus.active) { %>
+                    <div style="color: #059669; font-weight: 600; margin-bottom: 10px;">
+                        <i class="fas fa-circle" style="color: #22c55e;"></i> Reunión en curso
+                    </div>
+                    <% if (roomStatus.meetings && roomStatus.meetings.length > 0) { %>
+                        <% roomStatus.meetings.forEach(meeting => { %>
+                            <div class="meeting-item">
+                                <strong><%= meeting.title %></strong><br>
+                                <small class="meeting-time">
+                                    Inicio: <%= new Date(meeting.startTime).toLocaleString() %>
+                                </small>
+                                <% if (meeting.participants > 0) { %>
+                                    <br><small><%= meeting.participants %> participantes</small>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                <% } else { %>
+                    <div style="color: #6b7280; margin-bottom: 15px;">
+                        <i class="fas fa-circle" style="color: #ef4444;"></i> Sin reuniones activas
+                    </div>
+                    <p style="color: #6b7280;">La sala está disponible para nuevas reuniones.</p>
+                <% } %>
+                <button onclick="refreshStatus()" class="btn-primary" style="margin-top: 15px;">
+                    <i class="fas fa-refresh"></i> Actualizar Estado
+                </button>
+            </div>
+
+            <!-- Invitar Participantes -->
+            <div class="card">
+                <h3><i class="fas fa-user-plus"></i> Enviar Invitación</h3>
+                <div class="alert success" id="inviteSuccess"></div>
+                <div class="alert error" id="inviteError"></div>
+                <form id="inviteForm">
+                    <div class="form-group">
+                        <label>Email del invitado:</label>
+                        <input type="email" id="inviteEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mensaje (opcional):</label>
+                        <textarea id="inviteMessage" rows="3" placeholder="Mensaje personalizado..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-paper-plane"></i> Enviar Invitación
+                    </button>
+                </form>
+            </div>
+
+            <!-- Reuniones Próximas -->
+            <div class="card">
+                <h3><i class="fas fa-calendar"></i> Próximas Reuniones</h3>
+                <div class="meetings-list">
+                    <% if (meetings && meetings.length > 0) { %>
+                        <% meetings.forEach(meeting => { %>
+                            <div class="meeting-item">
+                                <strong><%= meeting.title %></strong><br>
+                                <small class="meeting-time">
+                                    <%= new Date(meeting.start).toLocaleString() %> • <%= meeting.duration %> min
+                                </small>
+                                <% if (meeting.joinUrl) { %>
+                                    <br><a href="<%= meeting.joinUrl %>" target="_blank" style="color: #4f46e5; text-decoration: none;">
+                                        <i class="fas fa-external-link-alt"></i> Unirse
+                                    </a>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <p style="color: #6b7280;">No hay reuniones programadas para las próximas 24 horas.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="timestamp">
+            Última actualización: <%= timestamp %>
+        </div>
+    </div>
+
+    <script>
+        function joinRoom() {
+            window.open('<%= personalRoomUrl %>', '_blank');
+        }
+
+        function copyUrl() {
+            navigator.clipboard.writeText('<%= personalRoomUrl %>').then(() => {
+                alert('URL copiada al portapapeles');
+            });
+        }
+
+        function refreshStatus() {
+            location.reload();
+        }
+
+        // Formulario de invitación
+        document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('inviteEmail').value;
+            const message = document.getElementById('inviteMessage').value;
+            
+            try {
+                const response = await fetch('/api/invite', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, message })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('inviteSuccess', 'Invitación enviada correctamente');
+                    document.getElementById('inviteForm').reset();
+                } else {
+                    showAlert('inviteError', result.error || 'Error al enviar invitación');
+                }
+            } catch (error) {
+                showAlert('inviteError', 'Error de conexión');
+            }
+        });
+
+        function showAlert(id, message) {
+            const alert = document.getElementById(id);
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-refresh cada 30 segundos
+        setInterval(refreshStatus, 30000);
+    </script>
+</body>
+</html>

@@ -14,7 +14,7 @@ app.set('view engine', 'ejs');
 // Environment variables
 const WEBEX_ACCESS_TOKEN = process.env.WEBEX_ACCESS_TOKEN;
 const PERSONAL_ROOM_URL = process.env.PERSONAL_ROOM_URL;
-const ROOM_TITLE = process.env.ROOM_TITLE || 'My Personal Room';
+const ROOM_TITLE = process.env.ROOM_TITLE || 'The Cloud 9 Ball';
 
 // WebEx API configuration
 const webexAPI = axios.create({
